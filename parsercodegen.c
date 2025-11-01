@@ -522,27 +522,38 @@ void write_elf_or_error_and_exit_if_msg(const char *msg) {
 
 void output() {
     printf("Assembly Code:\n\nLine OP L M\n\n");
-    for (int i = 0; i < code_ind; i++) {
+    for (int i = 0; i < code_index; i++) {
+        const char *opname = "";
         switch (code[i].op) {
-            case "LIT";
+            case LIT:
+                opname = "LIT";
                 break;
-            case "OPR";
+            case OPR:
+                opname = "OPR";
                 break;
-            case "LOD";
+            case LOD:
+                opname = "LOD";
                 break;
-            case "STO";
+            case STO:
+                opname = "STO";
                 break;
-            case "CAL";
+            case CAL:
+                opname = "CAL";
                 break;
-            case "INC";
+            case INC:
+                opname = "INC";
                 break;
-            case "JMP";
+            case JMP:
+                opname = "JMP";
                 break;
-            case "JPC";
+            case JPC:
+                opname = "JPC";
                 break;
-            case "SYS";
+            case SYS:
+                opname = "SYS";
                 break;
-            default: "UNK";
+            default:
+                opname = "UNK";
                 break;
         }
         printf("%d %s %d %d\n\n", i, opname, code[i].l, code[i].m);
