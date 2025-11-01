@@ -4,8 +4,6 @@
 #include <ctype.h>
 
 #define MAX_SYMBOL_TABLE_SIZE 500
-#define MAX_CODE 1000
-#define MAX_TOKENS 1000
 
 // tokenstype enumeration
 enum {
@@ -47,15 +45,15 @@ enum {
 
 // PM/0 instruction set
 enum {
-    OP_LIT = 1,
-    OP_OPR = 2,
-    OP_LOD = 3,
-    OP_STO = 4,
-    OP_CAL = 5,
-    OP_INC = 6,
-    OP_JMP = 7,
-    OP_JPC = 8,
-    OP_SYS = 9
+    LIT = 1,
+    OPR = 2,
+    LOD = 3,
+    STO = 4,
+    CAL = 5,
+    INC = 6,
+    JMP = 7,
+    JPC = 8,
+    SYS = 9
 };
 
 // OPR codes
@@ -93,12 +91,12 @@ typedef struct {
     int m;
 } instruction;
 
-instruction code[MAX_CODE];
-int code_index = 0;
+instruction code[500];
+int code_ind = 0;
 
 // token stream storage
-int tokens[MAX_TOKENS];
-char token_attr[MAX_TOKENS][64];
+int tokens[500];
+char token_attr[500][64];
 int tok_count = 0;
 int cur = 0; // index of current token
 
@@ -106,14 +104,14 @@ const char *TOKEN_FILENAME = "tokens.txt";
 const char *ELF_FILENAME = "elf.txt";
 
 void emit(int op, int l, int m) {
-    if (code_index >= MAX_CODE) {
+    if (code_ind >= 500) {
         fprintf(stderr, "Internal error: code array overflow\n");
         exit(1);
     }
-    code[code_index].op = op;
-    code[code_index].l = l;
-    code[code_index].m = m;
-    code_index++;
+    code[code_ind].op = op;
+    code[code_ind].l = l;
+    code[code_ind].m = m;
+    code_ind++;
 }
 
 int symbol_lookup(const char *name) {
@@ -183,7 +181,7 @@ char* cur_attr() {
     return "";
 }
 
-void write_exit_msg(const char *msg) {
+void exit_msg(const char *msg) {
     printf("%s\n", msg);
     FILE *elf = fopen(ELF_FILENAME, "w");
     if (elf) {
@@ -207,17 +205,17 @@ void factor();
 void program() {
     block();
     if (peek() != periodsym) {
-        write_exit_msg("Error: program must end with period");
+        exit_msg("Error: program must end with period");
     } else {
         advance(); // consume '.'
     }
-    emit(OP_SYS, 0, 3); // halt
+    emit(SYS, 0, 3); // halt
 }
 
 void block() {
     const_declaration();
     int numVars = var_declaration();
-    emit(OP_INC, 0, 3 + numVars);
+    emit(INC, 0, 3 + numVars);
     statement();
 }
 
@@ -226,7 +224,7 @@ void const_declaration() {
         advance(); // consume 'const'
         while (1) {
             if (peek() != identsym) {
-                write_exit_msg("Error: const, var, and read keywords must be followed by identifier");
+                exit_msg("Error: const, var, and read keywords must be followed by identifier");
             }
             advance(); // consume id
             // get name
@@ -234,14 +232,14 @@ void const_declaration() {
             strncpy(name, cur_attr(), 11);
             name[11] = 0;
             if (symbol_lookup(name) != -1) {
-                write_exit_msg("Error: symbol name has already been declared");
+                exit_msg("Error: symbol name has already been declared");
             }
             if (peek() != eqsym) {
-                write_exit_msg("Error: constants must be assigned with =");
+                exit_msg("Error: constants must be assigned with =");
             }
             advance(); // consume '='
             if (peek() != numbersym) {
-                write_exit_msg("Error: constants must be assigned an integer value");
+                exit_msg("Error: constants must be assigned an integer value");
             }
             // capture number
             int val = atoi(token_attr[cur]);
@@ -254,7 +252,7 @@ void const_declaration() {
             } else break;
         }
         if (peek() != semicolonsym) {
-            write_exit_msg("Error: constant and variable declarations must be followed by a semicolon");
+            exit_msg("Error: constant and variable declarations must be followed by a semicolon");
         }
         advance(); // consume ';'
     }
@@ -266,7 +264,7 @@ int var_declaration() {
         advance(); // consume 'var'
         while (1) {
             if (peek() != identsym) {
-                write_exit_msg("Error: const, var, and read keywords must be followed by identifier");
+                exit_msg("Error: const, var, and read keywords must be followed by identifier");
             }
             // get name
             char name[12];
@@ -274,7 +272,7 @@ int var_declaration() {
             name[11] = 0;
             advance(); // consume id
             if (symbol_lookup(name) != -1) {
-                write_exit_msg("Error: symbol name has already been declared");
+                exit_msg("Error: symbol name has already been declared");
             }
             // addresses allocation per sample, first var addr = 3, second = 4, etc
             int addr = 3 + numVars;
@@ -286,7 +284,7 @@ int var_declaration() {
             } else break;
         }
         if (peek() != semicolonsym) {
-            write_exit_msg("Error: constant and variable declarations must be followed by a semicolon");
+            exit_msg("Error: constant and variable declarations must be followed by a semicolon");
         }
         advance(); // consume ';'
     }
@@ -301,18 +299,18 @@ void statement() {
         name[11] = 0;
         int idx = symbol_lookup(name);
         if (idx == -1) {
-            write_exit_msg("Error: undeclared identifier");
+            exit_msg("Error: undeclared identifier");
         }
         if (symbol_table[idx].kind != 2) {
-            write_exit_msg("Error: only variable values may be altered");
+            exit_msg("Error: only variable values may be altered");
         }
         advance(); // consume id
         if (peek() != becomessym) {
-            write_exit_msg("Error: assignment statements must use :=");
+            exit_msg("Error: assignment statements must use :=");
         }
         advance(); // consume ':='
         expression();
-        emit(OP_STO, 0, symbol_table[idx].addr);
+        emit(STO, 0, symbol_table[idx].addr);
         return;
     } else if (tok == beginsym) {
         advance(); // consume 'begin'
@@ -322,57 +320,57 @@ void statement() {
             statement();
         }
         if (peek() != endsym) {
-            write_exit_msg("Error: begin must be followed by end");
+            exit_msg("Error: begin must be followed by end");
         }
         advance(); // consume 'end'
         return;
     } else if (tok == ifsym) {
         advance();
         condition();
-        int jpcIdx = code_index;
-        emit(OP_JPC, 0, 0); // placeholder M
+        int jpcIdx = code_ind;
+        emit(JPC, 0, 0); // placeholder M
         if (peek() != thensym) {
-            write_exit_msg("Error: if must be followed by then");
+            exit_msg("Error: if must be followed by then");
         }
         advance(); // consume 'then'
         statement();
-        code[jpcIdx].m = code_index;
+        code[jpcIdx].m = code_ind;
         return;
     } else if (tok == whilesym) {
         advance();
-        int loopIdx = code_index;
+        int loopIdx = code_ind;
         condition();
         if (peek() != dosym) {
-            write_exit_msg("Error: while must be followed by do");
+            exit_msg("Error: while must be followed by do");
         }
         advance();
-        int jpcIdx = code_index;
-        emit(OP_JPC, 0, 0);
+        int jpcIdx = code_ind;
+        emit(JPC, 0, 0);
         statement();
-        emit(OP_JMP, 0, loopIdx);
-        code[jpcIdx].m = code_index;
+        emit(JMP, 0, loopIdx);
+        code[jpcIdx].m = code_ind;
         return;
     } else if (tok == readsym) {
         advance();
         if (peek() != identsym) {
-            write_exit_msg("Error: const, var, and read keywords must be followed by identifier");
+            exit_msg("Error: const, var, and read keywords must be followed by identifier");
         }
         char name[12]; strncpy(name, token_attr[cur], 11); name[11]=0;
         int idx = symbol_lookup(name);
         if (idx == -1) {
-            write_exit_msg("Error: undeclared identifier");
+            exit_msg("Error: undeclared identifier");
         }
         if (symbol_table[idx].kind != 2) {
-            write_exit_msg("Error: only variable values may be altered");
+            exit_msg("Error: only variable values may be altered");
         }
         advance(); // consume id
-        emit(OP_SYS, 0, 2);
-        emit(OP_STO, 0, symbol_table[idx].addr);
+        emit(SYS, 0, 2);
+        emit(STO, 0, symbol_table[idx].addr);
         return;
     } else if (tok == writesym) {
         advance();
         expression();
-        emit(OP_SYS, 0, 1); // write top of stack
+        emit(SYS, 0, 1); // write top of stack
         return;
     } else {
         // empty statement
@@ -384,28 +382,28 @@ void condition() {
     if (peek() == evensym) {
         advance();
         expression();
-        emit(OP_OPR, 0, OPR_EVEN);
+        emit(OPR, 0, OPR_EVEN);
     } else {
         expression();
         int rel = peek();
         if (!(rel == eqsym || rel == neqsym || rel == lessym || rel == leqsym || rel == gtrsym || rel == geqsym)) {
-            write_exit_msg("Error: condition must contain comparison operator");
+            exit_msg("Error: condition must contain comparison operator");
         }
         advance(); // consume operator
         expression();
         // emit OPR
         if (rel == eqsym)
-            emit(OP_OPR, 0, OPR_EQL);
+            emit(OPR, 0, OPR_EQL);
         else if (rel == neqsym)
-            emit(OP_OPR, 0, OPR_NEQ);
+            emit(OPR, 0, OPR_NEQ);
         else if (rel == lessym)
-            emit(OP_OPR, 0, OPR_LSS);
+            emit(OPR, 0, OPR_LSS);
         else if (rel == leqsym)
-            emit(OP_OPR, 0, OPR_LEQ);
+            emit(OPR, 0, OPR_LEQ);
         else if (rel == gtrsym)
-            emit(OP_OPR, 0, OPR_GTR);
+            emit(OPR, 0, OPR_GTR);
         else if (rel == geqsym)
-            emit(OP_OPR, 0, OPR_GEQ);
+            emit(OPR, 0, OPR_GEQ);
     }
 }
 
@@ -414,9 +412,9 @@ void expression() {
         int sign = peek();
         advance();
         if (sign == minussym) {
-            emit(OP_LIT, 0, 0);
+            emit(LIT, 0, 0);
             term();
-            emit(OP_OPR, 0, OPR_SUB);
+            emit(OPR, 0, OPR_SUB);
         } else {
             term();
         }
@@ -428,9 +426,9 @@ void expression() {
         advance();
         term();
         if (op == plussym) {
-            emit(OP_OPR, 0, OPR_ADD);
+            emit(OPR, 0, OPR_ADD);
         } else {
-            emit(OP_OPR, 0, OPR_SUB);
+            emit(OPR, 0, OPR_SUB);
         }
     }
 }
@@ -442,9 +440,9 @@ void term() {
         advance();
         factor();
         if (op == multsym) {
-            emit(OP_OPR, 0, OPR_MUL);
+            emit(OPR, 0, OPR_MUL);
         } else {
-            emit(OP_OPR, 0, OPR_DIV);
+            emit(OPR, 0, OPR_DIV);
         }
     }
 }
@@ -457,25 +455,25 @@ void factor() {
         name[11] = 0;
         int idx = symbol_lookup(name);
         if (idx == -1) {
-            write_exit_msg("Error: undeclared identifier");
+            exit_msg("Error: undeclared identifier");
         }
         if (symbol_table[idx].kind == 1) {
-            emit(OP_LIT, 0, symbol_table[idx].val);
+            emit(LIT, 0, symbol_table[idx].val);
         } else {
-            emit(OP_LOD, 0, symbol_table[idx].addr);
+            emit(LOD, 0, symbol_table[idx].addr);
         }
         advance();
     } else if (t == numbersym) {
         int val = atoi(token_attr[cur]);
-        emit(OP_LIT, 0, val);
+        emit(LIT, 0, val);
         advance();
     } else if (t == lparentsym) {
         advance();
         expression();
-        if (peek() != rparentsym) write_exit_msg("Error: right parenthesis must follow left parenthesis");
+        if (peek() != rparentsym) exit_msg("Error: right parenthesis must follow left parenthesis");
         advance();
     } else {
-        write_exit_msg("Error: arithmetic equations must contain operands, parentheses, numbers, or symbols");
+        exit_msg("Error: arithmetic equations must contain operands, parentheses, numbers, or symbols");
     }
 }
 
@@ -486,7 +484,7 @@ void read_token_file() {
         exit(1);
     }
     tok_count = 0;
-    while (!feof(f) && tok_count < MAX_TOKENS) {
+    while (!feof(f) && tok_count < 500) {
         int tok;
         if (fscanf(f, "%d", &tok) != 1) {
             break;
@@ -508,7 +506,7 @@ void read_token_file() {
     // error check
     for (int i = 0; i < tok_count; i++) {
         if (tokens[i] == skipsym) {
-            write_exit_msg("Error: Scanning error detected by lexer (skipsym present)");
+            exit_msg("Error: Scanning error detected by lexer (skipsym present)");
         }
     }
 }
@@ -522,30 +520,29 @@ void write_elf_or_error_and_exit_if_msg(const char *msg) {
     exit(1);
 }
 
-void output_code_and_table() {
+void output() {
     printf("Assembly Code:\n\nLine OP L M\n\n");
-    for (int i = 0; i < code_index; i++) {
-        const char *opname = "";
+    for (int i = 0; i < code_ind; i++) {
         switch (code[i].op) {
-            case OP_LIT: opname = "LIT";
+            case "LIT";
                 break;
-            case OP_OPR: opname = "OPR";
+            case "OPR";
                 break;
-            case OP_LOD: opname = "LOD";
+            case "LOD";
                 break;
-            case OP_STO: opname = "STO";
+            case "STO";
                 break;
-            case OP_CAL: opname = "CAL";
+            case "CAL";
                 break;
-            case OP_INC: opname = "INC";
+            case "INC";
                 break;
-            case OP_JMP: opname = "JMP";
+            case "JMP";
                 break;
-            case OP_JPC: opname = "JPC";
+            case "JPC";
                 break;
-            case OP_SYS: opname = "SYS";
+            case "SYS";
                 break;
-            default: opname = "UNK";
+            default: "UNK";
                 break;
         }
         printf("%d %s %d %d\n\n", i, opname, code[i].l, code[i].m);
@@ -562,7 +559,7 @@ void output_code_and_table() {
         fprintf(stderr, "Failed to open elf.txt for writing\n");
         exit(1);
     }
-    for (int i = 0; i < code_index; i++) {
+    for (int i = 0; i < code_ind; i++) {
         fprintf(elf, "%d %d %d\n", code[i].op, code[i].l, code[i].m);
     }
     fclose(elf);
@@ -573,12 +570,12 @@ int main() {
     read_token_file();
 
     // emit initial JMP 0 3 placeholder then code
-    emit(OP_JMP, 0, 3);
+    emit(JMP, 0, 3);
 
     // start parsing
     program();
 
     // after successful parse, output code and symbol table
-    output_code_and_table();
+    output();
     return 0;
 }
