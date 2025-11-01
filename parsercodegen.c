@@ -364,11 +364,12 @@ void statement() {
         }
         advance(); // consume 'then'
         statement();
+        if (peek() != fisym) {
+            exit_msg("Error: then must be followed by fi");
+        }
+        advance(); // consume 'fi'
         code[jpcIdx].m = code_ind;
         return;
-    } else if (tok != fisym) {
-        exit_msg("Error: then must be followed by fi");
-        advance();
     } else if (tok == whilesym) {
         advance();
         int loopIdx = code_ind;
