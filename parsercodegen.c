@@ -546,7 +546,7 @@ void read_token_file() {
 
 void output() {
     printf("Assembly Code:\n\nLine OP L M\n\n");
-    for (int i = 0; i < code_index; i++) {
+    for (int i = 0; i < code_ind; i++) {
         const char *opname = "";
         switch (code[i].op) {
             case LIT:
